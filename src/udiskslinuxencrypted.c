@@ -210,6 +210,32 @@ update_cleartext_device (UDisksLinuxEncrypted   *encrypted,
     }
 }
 
+static void
+update_clear_key (UDisksLinuxEncrypted   *encrypted,
+                  UDisksLinuxBlockObject *object)
+{
+  UDisksLinuxDevice *device;
+  BDCryptoBITLKInfo *info = NULL;
+  GError *error = NULL;
+
+  device = udisks_linux_block_object_get_device (object);
+
+  info = bd_crypto_bitlk_info (g_udev_device_get_device_file (device->udev_device),
+                               &error);
+  if (!info)
+    {
+      g_clear_error (&error);
+      udisks_encrypted_set_clear_key (UDISKS_ENCRYPTED (encrypted), FALSE);
+    }
+  else
+    {
+      udisks_encrypted_set_clear_key (UDISKS_ENCRYPTED (encrypted), info->has_clearkey);
+      bd_crypto_bitlk_info_free (info);
+    }
+
+  g_object_unref (device);
+}
+
 /**
  * udisks_linux_encrypted_update:
  * @encrypted: A #UDisksLinuxEncrypted.
@@ -237,6 +263,11 @@ udisks_linux_encrypted_update (UDisksLinuxEncrypted   *encrypted,
 
   if (udisks_linux_block_is_luks (block))
     update_metadata_size (encrypted, object);
+
+  if (udisks_linux_block_is_bitlk (block))
+    update_clear_key (encrypted, object);
+  else
+    udisks_encrypted_set_clear_key (UDISKS_ENCRYPTED (encrypted), FALSE);
 
   udisks_linux_block_encrypted_info_unlock (block);
 
@@ -474,6 +505,8 @@ handle_unlock (UDisksEncrypted        *encrypted,
     effective_passphrase = g_string_new_len (crypttab_passphrase, crypttab_passphrase_len);
   else if (keyfiles[0] != NULL)
     effective_passphrase = g_string_new (NULL);
+  else if (is_bitlk && udisks_encrypted_get_clear_key (encrypted))
+    effective_passphrase = g_string_new ("");
   else
     {
       g_dbus_method_invocation_return_error (invocation,

@@ -1002,4 +1002,37 @@ class UdisksEncryptedTestBITLK(udiskstestcase.UdisksTestCase):
         self.loop.Lock(self.no_options, dbus_interface=self.iface_prefix + '.Encrypted')
 
 
+class UdisksEncryptedTestBITLKClearKey(UdisksEncryptedTestBITLK):
+    bitlk_img = "bitlk-aes-xts-128-clearkey-only.img"
+
+    def setUp(self):
+        cryptsetup_version = _get_cryptsetup_version()
+        if cryptsetup_version < Version('2.8.0'):
+            self.skipTest('BITLK Clear Key not supported by cryptsetup')
+
+        super(UdisksEncryptedTestBITLKClearKey, self).setUp()
+
+    def test_open_close(self):
+        pass # Override inherited test which relies on a passphrase
+
+    def test_clearkey_unlock(self):
+        self.assertHasIface(self.loop, self.iface_prefix + '.Encrypted')
+
+        # Verify ClearKey property
+        dbus_clearkey = self.get_property(self.loop, '.Encrypted', 'ClearKey')
+        dbus_clearkey.assertEqual(True)
+
+        # Unlock with empty passphrase
+        crypt_path = self.loop.Unlock("", self.no_options,
+                                      dbus_interface=self.iface_prefix + '.Encrypted')
+        self.assertIsNotNone(crypt_path)
+
+        # Verify cleartext device
+        dbus_cleartext = self.get_property(self.loop, '.Encrypted', 'CleartextDevice')
+        dbus_cleartext.assertEqual(str(crypt_path))
+
+        # Lock the device cleanly
+        self.loop.Lock(self.no_options, dbus_interface=self.iface_prefix + '.Encrypted')
+
+
 del UdisksEncryptedTest  # skip UdisksEncryptedTest

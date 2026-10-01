@@ -1334,7 +1334,7 @@ handle_command_unlock_lock (gint        *argc,
   options = g_variant_builder_end (&builder);
   g_variant_ref_sink (options);
 
-  if (is_unlock && !opt_unlock_keyfile && !has_crypttab_passphrase (block))
+  if (is_unlock && !opt_unlock_keyfile && !has_crypttab_passphrase (block) && !udisks_encrypted_get_clear_key (encrypted))
     passphrase = read_passphrase ();
 
  try_again:

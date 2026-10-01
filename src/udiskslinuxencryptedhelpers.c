@@ -187,10 +187,17 @@ gboolean bitlk_open_job_func (UDisksThreadedJob  *job,
   gboolean ret = FALSE;
   BDCryptoOpenFlags flags = 0;
 
-  context = bd_crypto_keyslot_context_new_passphrase ((const guint8 *) data->passphrase->str,
-                                                      data->passphrase->len, error);
-  if (!context)
-    return FALSE;
+  if (data->passphrase && data->passphrase->len > 0)
+    {
+      context = bd_crypto_keyslot_context_new_passphrase ((const guint8 *) data->passphrase->str,
+                                                          data->passphrase->len, error);
+      if (!context)
+        return FALSE;
+    }
+  else
+    {
+      context = NULL;
+    }
 
   if (data->read_only)
     flags |= BD_CRYPTO_OPEN_READONLY;
@@ -198,7 +205,8 @@ gboolean bitlk_open_job_func (UDisksThreadedJob  *job,
     flags |= BD_CRYPTO_OPEN_ALLOW_DISCARDS;
 
   ret = bd_crypto_bitlk_open_flags (data->device, data->map_name, context, flags, error);
-  bd_crypto_keyslot_context_free (context);
+  if (context)
+    bd_crypto_keyslot_context_free (context);
   return ret;
 }
 
